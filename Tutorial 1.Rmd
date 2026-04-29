@@ -4,3 +4,298 @@ author: "Jakub Janusz"
 date: "2026-04-29"
 output: html_document
 ---
+
+# 1 Handling social network data in R
+
+Loading packages
+
+```{r}
+#install.packages("network")
+#install.packages("igraph")
+#install.packages("reshape2")
+#install.packages("tidyverse")
+
+library(network)
+library(igraph)
+library(reshape2)
+library(tidyverse)
+```
+
+## 1.1 Getting network data into R: the igraph package
+
+### 1.1.1 From adjacency matrix to igraph object
+
+Reading data from internet
+
+```{r}
+url1 <- "https://github.com/rensec/sasr08/raw/main/g_adj_matrix_simple.csv"
+g_matrix <- read.csv(file = url1, header = FALSE)
+g_matrix
+```
+
+\^ adjacency matrix - square matrix in which both the rows and the columns represent nodes, and the values in the cells indicate the status of the edges between these nodes
+
+```{r}
+class(g_matrix)
+```
+
+Transformation into matrix object
+
+```{r}
+g_matrix <- as.matrix(g_matrix)
+g_matrix
+```
+
+\^matrix object - the data still have the *shape* of an adjacency matrix, but in R, it is now stored as an object of class ‘matrix’
+
+Adding row- and column names for claritry (by simply numbering them):
+
+```{r}
+rownames(g_matrix) <- 1:nrow(g_matrix)
+colnames(g_matrix) <- 1:ncol(g_matrix)
+g_matrix
+```
+
+**QUESTION:** How many nodes are included in this matrix, and how many edges are there between these nodes?
+
+5 nodes and 4 edges between them
+
+Reading an attribute of the nodes:
+
+```{r}
+g_nodes_age <- read.csv(file = "https://github.com/rensec/sasr08/raw/main/g_nodes_age.csv")
+g_nodes_age
+```
+
+Creating an `igraph` network object from our matrix
+
+```{r}
+g <- graph_from_adjacency_matrix(g_matrix)
+class(g)
+
+g
+```
+
+Creating network map
+
+```{r}
+plot(g)
+
+```
+
+Adding node attributes to the object
+
+```{r}
+g <- set_vertex_attr(g, 
+                     name = "age",
+                     value = g_nodes_age$age)
+```
+
+### 1.1.2 From edge list to igraph object
+
+Loading the file with edge list into a data frame:
+
+```{r}
+g_elist <- read.csv(file = "https://github.com/rensec/sasr08/raw/main/g_elist.csv")
+g_elist
+```
+
+Creating an `igraph` network object from the edge list:
+
+```{r}
+g_from_elist <- graph_from_data_frame(g_elist) 
+plot(g_from_elist)
+```
+
+\^ Isolate (mr 5) lost :(((
+
+Now we want to include isolante in the network object
+
+```{r}
+g_from_elist <- graph_from_data_frame(g_elist, vertices = g_nodes_age) 
+plot(g_from_elist)
+```
+
+! it is important to always include a complete node list as well (unless you are certain that the edge list includes all nodes)!
+
+**Assignment:** from the code snippets above, construct a complete “pipeline” to go from the edge list to the igraph object. Start from `g_elist`. Plot the resulting network. Store the code somewhere for later use.
+
+```{r}
+g_elist <- read.csv(file = "https://github.com/rensec/sasr08/raw/main/g_elist.csv")
+
+g_from_elist <- graph_from_data_frame(g_elist, vertices = g_nodes_age) 
+plot(g_from_elist)
+```
+
+### 1.1.3 From adjacency list to igraph object
+
+Adjacency list
+
+```{r}
+g_adj_list <- read.csv(file = "https://github.com/rensec/sasr08/raw/main/g_adj_list.csv")
+g_adj_list
+```
+
+The most convenient way to create a network object from these data, is to first transform them into an *edge list*
+
+Making data long
+
+```{r}
+g_elist_from_alist <- g_adj_list
+g_elist_from_alist <-  select(g_elist_from_alist, id, friend1:friend2) # keep only the network variables (and id)
+g_elist_from_alist <-  melt(g_elist_from_alist, id.vars = "id") # from the reshape2 package
+g_elist_from_alist
+```
+
+Using pipe operator to streamline the code
+
+```{r}
+g_elist_from_alist <- g_adj_list %>% 
+  select(id, friend1:friend2) %>% # keep only the network variables (and id)
+  melt( id.vars = "id") # from the reshape2 package
+```
+
+Same thing using tidyverse
+
+```{r}
+g_adj_list %>% # (we don't save it into an object as above this time, since we just want to show that the result is the same)
+  select(id, friend1:friend2) %>% #keep only the network variables (and id)
+  pivot_longer(c(friend1, friend2))
+```
+
+To create an edge list we subsequently drop all missing values on “value” and do some housekeeping:
+
+```{r}
+g_elist_from_alist <- g_elist_from_alist%>% 
+  filter(!is.na(value)) %>% # drop the missings
+  rename(from ="id", to = "value", sourcevar= "variable") %>% #just nice for interpretation
+  relocate(to, .after=from) #move around the columns
+g_elist_from_alist
+```
+
+**QUESTION:** Besides being useful for data manipulation procedures, keeping the information in `sourcevar` could also be important for more substantive reasons. Can you think of such a reason?
+
+For when we want to account for the strength of relationships? friend 1 might indicate best friend = stronger tie.
+
+now importing into network object
+
+```{r}
+g_from_alist <- graph_from_data_frame(g_elist_from_alist) #This is a proper igraph graph object
+plot(g_from_alist)
+```
+
+correction to include isolate (+creating adjacency list)
+
+```{r}
+nodelist <- select(g_adj_list,id,age)
+g_from_alist <- graph_from_data_frame(g_elist_from_alist, vertices = nodelist) #This is a proper igraph graph object
+plot(g_from_alist)
+```
+
+## 1.2 The reverse direction: exporting from igraph objects
+
+### 1.2.1 From igraph to adjacency matrix
+
+```{r}
+g_adj_matrix <- as_adjacency_matrix(g, sparse = FALSE)
+g_adj_matrix
+
+```
+
+### 1.2.2 From igraph to edge list
+
+```{r}
+g_edgelist <- igraph::as_data_frame(g_from_elist, what = "edges") 
+g_edgelist
+```
+
+the number 5 again...
+
+```{r}
+igraph::as_data_frame(g_from_elist, what = "vertices") 
+
+```
+
+### 1.2.3 From igraph to adjacency list
+
+```{r}
+edgelist_2 <- igraph::as_data_frame(g_from_alist, what = "edges")
+nodelist_2 <- igraph::as_data_frame(g_from_alist, what = "vertices")
+# Note the use of the "namespace" "igraph::" here, to indicate that we need the igraph function here, not the function with the same name from the dplyr/tidyverse package
+
+d <- edgelist_2 %>%
+  rename(id = "from") %>% 
+  pivot_wider( id_cols = id, names_from = sourcevar, values_from = to ) %>% 
+  merge(nodelist_2, by.x = "id", by.y = "name", all.y = TRUE ) %>% 
+  relocate(age, .after = id) %>% 
+  type_convert() #as_data_frame returns characters; this transforms it back to numeric
+```
+
+```{r}
+d
+```
+
+## 1.3 Getting network data into R: the network package
+
+```{r}
+g_np <- as.network(g_elist_from_alist, matrix.type = "edgelist", vertices = nodelist)
+g_np
+
+```
+
+```{r}
+plot(g_np)
+
+```
+
+## 1.4 Modifying networks in igraph
+
+Removing a node :((
+
+```{r}
+g_mod <- delete_vertices(g,2)
+plot(g_mod)
+```
+
+Eliminating 21 year olds
+
+```{r}
+g_mod <- delete_vertices(g,which(V(g)$age == 21))
+plot(g_mod)
+```
+
+Eliminating missing age
+
+```{r}
+g_mod <- delete_vertices(g,which(is.na(V(g)$age)))
+plot(g_mod)
+```
+
+Adding node attributes
+
+```{r}
+V(g)$gender <- c("male", "female", "female", "other", "male") 
+g
+```
+
+Functions that modify the entire graph
+
+```{r}
+g_rev <- reverse_edges(g)
+plot(g_rev)
+```
+
+combining edges of two graphs
+
+```{r}
+g_union <- igraph::union(g, g_rev)
+plot(g_union)
+
+
+g_undir <- as_undirected(g)
+plot(g_undir)
+```
+
+***QUESTION:*** What’s the difference?
+
+in one we see that there are edges in two directions and in the second one we just can see that there are edges

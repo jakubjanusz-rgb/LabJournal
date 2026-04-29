@@ -347,10 +347,7 @@ div.tocify {
   </a>
   <ul class="dropdown-menu" role="menu">
     <li>
-      <a href="lab1.html">Page 1</a>
-    </li>
-    <li>
-      <a href="test_rmd.html">Page 2</a>
+      <a href="Tutorial 1.html">Tutorial 1</a>
     </li>
   </ul>
 </li>
@@ -388,9 +385,377 @@ div.tocify {
 </div>
 
 
+<div id="handling-social-network-data-in-r" class="section level1"
+number="1">
+<h1><span class="header-section-number">1</span> 1 Handling social
+network data in R</h1>
+<p>Loading packages</p>
+<pre class="r"><code>#install.packages(&quot;network&quot;)
+#install.packages(&quot;igraph&quot;)
+#install.packages(&quot;reshape2&quot;)
+#install.packages(&quot;tidyverse&quot;)
 
+library(network)</code></pre>
+<pre><code>## 
+## &#39;network&#39; 1.20.0 (2026-02-06), part of the Statnet Project
+## * &#39;news(package=&quot;network&quot;)&#39; for changes since last version
+## * &#39;citation(&quot;network&quot;)&#39; for citation information
+## * &#39;https://statnet.org&#39; for help, support, and other information</code></pre>
+<pre class="r"><code>library(igraph)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;igraph&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:network&#39;:
+## 
+##     %c%, %s%, add.edges, add.vertices, delete.edges, delete.vertices,
+##     get.edge.attribute, get.edges, get.vertex.attribute, is.bipartite,
+##     is.directed, list.edge.attributes, list.vertex.attributes,
+##     set.edge.attribute, set.vertex.attribute</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     decompose, spectrum</code></pre>
+<pre><code>## The following object is masked from &#39;package:base&#39;:
+## 
+##     union</code></pre>
+<pre class="r"><code>library(reshape2)
+library(tidyverse)</code></pre>
+<pre><code>## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+## ✔ dplyr     1.2.0     ✔ readr     2.1.6
+## ✔ forcats   1.0.1     ✔ stringr   1.6.0
+## ✔ ggplot2   4.0.2     ✔ tibble    3.3.1
+## ✔ lubridate 1.9.5     ✔ tidyr     1.3.2
+## ✔ purrr     1.2.1</code></pre>
+<pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ lubridate::%--%()      masks igraph::%--%()
+## ✖ dplyr::as_data_frame() masks tibble::as_data_frame(), igraph::as_data_frame()
+## ✖ purrr::compose()       masks igraph::compose()
+## ✖ tidyr::crossing()      masks igraph::crossing()
+## ✖ dplyr::filter()        masks stats::filter()
+## ✖ dplyr::lag()           masks stats::lag()
+## ✖ purrr::simplify()      masks igraph::simplify()
+## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
+<div id="getting-network-data-into-r-the-igraph-package"
+class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> 1.1 Getting network
+data into R: the igraph package</h2>
+<div id="from-adjacency-matrix-to-igraph-object" class="section level3"
+number="1.1.1">
+<h3><span class="header-section-number">1.1.1</span> 1.1.1 From
+adjacency matrix to igraph object</h3>
+<p>Reading data from internet</p>
+<pre class="r"><code>url1 &lt;- &quot;https://github.com/rensec/sasr08/raw/main/g_adj_matrix_simple.csv&quot;
+g_matrix &lt;- read.csv(file = url1, header = FALSE)
+g_matrix</code></pre>
+<pre><code>##   V1 V2 V3 V4 V5
+## 1  0  1  0  1  0
+## 2  0  0  1  0  0
+## 3  1  0  0  0  0
+## 4  0  0  0  0  0
+## 5  0  0  0  0  0</code></pre>
+<p>^ adjacency matrix - square matrix in which both the rows and the
+columns represent nodes, and the values in the cells indicate the status
+of the edges between these nodes</p>
+<pre class="r"><code>class(g_matrix)</code></pre>
+<pre><code>## [1] &quot;data.frame&quot;</code></pre>
+<p>Transformation into matrix object</p>
+<pre class="r"><code>g_matrix &lt;- as.matrix(g_matrix)
+g_matrix</code></pre>
+<pre><code>##      V1 V2 V3 V4 V5
+## [1,]  0  1  0  1  0
+## [2,]  0  0  1  0  0
+## [3,]  1  0  0  0  0
+## [4,]  0  0  0  0  0
+## [5,]  0  0  0  0  0</code></pre>
+<p>^matrix object - the data still have the <em>shape</em> of an
+adjacency matrix, but in R, it is now stored as an object of class
+‘matrix’</p>
+<p>Adding row- and column names for claritry (by simply numbering
+them):</p>
+<pre class="r"><code>rownames(g_matrix) &lt;- 1:nrow(g_matrix)
+colnames(g_matrix) &lt;- 1:ncol(g_matrix)
+g_matrix</code></pre>
+<pre><code>##   1 2 3 4 5
+## 1 0 1 0 1 0
+## 2 0 0 1 0 0
+## 3 1 0 0 0 0
+## 4 0 0 0 0 0
+## 5 0 0 0 0 0</code></pre>
+<p><strong>QUESTION:</strong> How many nodes are included in this
+matrix, and how many edges are there between these nodes?</p>
+<p>5 nodes and 4 edges between them</p>
+<p>Reading an attribute of the nodes:</p>
+<pre class="r"><code>g_nodes_age &lt;- read.csv(file = &quot;https://github.com/rensec/sasr08/raw/main/g_nodes_age.csv&quot;)
+g_nodes_age</code></pre>
+<pre><code>##   id age
+## 1  1  20
+## 2  2  21
+## 3  3  25
+## 4  4  NA
+## 5  5  21</code></pre>
+<p>Creating an <code>igraph</code> network object from our matrix</p>
+<pre class="r"><code>g &lt;- graph_from_adjacency_matrix(g_matrix)
+class(g)</code></pre>
+<pre><code>## [1] &quot;igraph&quot;</code></pre>
+<pre class="r"><code>g</code></pre>
+<pre><code>## IGRAPH b6b22d3 DN-- 5 4 -- 
+## + attr: name (v/c)
+## + edges from b6b22d3 (vertex names):
+## [1] 1-&gt;2 1-&gt;4 2-&gt;3 3-&gt;1</code></pre>
+<p>Creating network map</p>
+<pre class="r"><code>plot(g)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-8-1.png" alt="" width="672" /></p>
+<p>Adding node attributes to the object</p>
+<pre class="r"><code>g &lt;- set_vertex_attr(g, 
+                     name = &quot;age&quot;,
+                     value = g_nodes_age$age)</code></pre>
+</div>
+<div id="from-edge-list-to-igraph-object" class="section level3"
+number="1.1.2">
+<h3><span class="header-section-number">1.1.2</span> 1.1.2 From edge
+list to igraph object</h3>
+<p>Loading the file with edge list into a data frame:</p>
+<pre class="r"><code>g_elist &lt;- read.csv(file = &quot;https://github.com/rensec/sasr08/raw/main/g_elist.csv&quot;)
+g_elist</code></pre>
+<pre><code>##   from to
+## 1    1  2
+## 2    2  3
+## 3    3  1
+## 4    1  4</code></pre>
+<p>Creating an <code>igraph</code> network object from the edge
+list:</p>
+<pre class="r"><code>g_from_elist &lt;- graph_from_data_frame(g_elist) 
+plot(g_from_elist)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-11-1.png" alt="" width="672" /></p>
+<p>^ Isolate (mr 5) lost :(((</p>
+<p>Now we want to include isolante in the network object</p>
+<pre class="r"><code>g_from_elist &lt;- graph_from_data_frame(g_elist, vertices = g_nodes_age) 
+plot(g_from_elist)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-12-1.png" alt="" width="672" /></p>
+<p>! it is important to always include a complete node list as well
+(unless you are certain that the edge list includes all nodes)!</p>
+<p><strong>Assignment:</strong> from the code snippets above, construct
+a complete “pipeline” to go from the edge list to the igraph object.
+Start from <code>g_elist</code>. Plot the resulting network. Store the
+code somewhere for later use.</p>
+<pre class="r"><code>g_elist &lt;- read.csv(file = &quot;https://github.com/rensec/sasr08/raw/main/g_elist.csv&quot;)
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiVHV0b3JpYWwgMSIKYXV0aG9yOiAiSmFrdWIgSmFudXN6IgpkYXRlOiAiMjAyNi0wNC0yOSIKb3V0cHV0OiBodG1sX2RvY3VtZW50Ci0tLQo=</div>
+g_from_elist &lt;- graph_from_data_frame(g_elist, vertices = g_nodes_age) 
+plot(g_from_elist)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-13-1.png" alt="" width="672" /></p>
+</div>
+<div id="from-adjacency-list-to-igraph-object" class="section level3"
+number="1.1.3">
+<h3><span class="header-section-number">1.1.3</span> 1.1.3 From
+adjacency list to igraph object</h3>
+<p>Adjacency list</p>
+<pre class="r"><code>g_adj_list &lt;- read.csv(file = &quot;https://github.com/rensec/sasr08/raw/main/g_adj_list.csv&quot;)
+g_adj_list</code></pre>
+<pre><code>##   id age friend1 friend2
+## 1  1  20       2       4
+## 2  2  21       3      NA
+## 3  3  25       1      NA
+## 4  4  NA      NA      NA
+## 5  5  21      NA      NA</code></pre>
+<p>The most convenient way to create a network object from these data,
+is to first transform them into an <em>edge list</em></p>
+<p>Making data long</p>
+<pre class="r"><code>g_elist_from_alist &lt;- g_adj_list
+g_elist_from_alist &lt;-  select(g_elist_from_alist, id, friend1:friend2) # keep only the network variables (and id)
+g_elist_from_alist &lt;-  melt(g_elist_from_alist, id.vars = &quot;id&quot;) # from the reshape2 package
+g_elist_from_alist</code></pre>
+<pre><code>##    id variable value
+## 1   1  friend1     2
+## 2   2  friend1     3
+## 3   3  friend1     1
+## 4   4  friend1    NA
+## 5   5  friend1    NA
+## 6   1  friend2     4
+## 7   2  friend2    NA
+## 8   3  friend2    NA
+## 9   4  friend2    NA
+## 10  5  friend2    NA</code></pre>
+<p>Using pipe operator to streamline the code</p>
+<pre class="r"><code>g_elist_from_alist &lt;- g_adj_list %&gt;% 
+  select(id, friend1:friend2) %&gt;% # keep only the network variables (and id)
+  melt( id.vars = &quot;id&quot;) # from the reshape2 package</code></pre>
+<p>Same thing using tidyverse</p>
+<pre class="r"><code>g_adj_list %&gt;% # (we don&#39;t save it into an object as above this time, since we just want to show that the result is the same)
+  select(id, friend1:friend2) %&gt;% #keep only the network variables (and id)
+  pivot_longer(c(friend1, friend2))</code></pre>
+<pre><code>## # A tibble: 10 × 3
+##       id name    value
+##    &lt;int&gt; &lt;chr&gt;   &lt;int&gt;
+##  1     1 friend1     2
+##  2     1 friend2     4
+##  3     2 friend1     3
+##  4     2 friend2    NA
+##  5     3 friend1     1
+##  6     3 friend2    NA
+##  7     4 friend1    NA
+##  8     4 friend2    NA
+##  9     5 friend1    NA
+## 10     5 friend2    NA</code></pre>
+<p>To create an edge list we subsequently drop all missing values on
+“value” and do some housekeeping:</p>
+<pre class="r"><code>g_elist_from_alist &lt;- g_elist_from_alist%&gt;% 
+  filter(!is.na(value)) %&gt;% # drop the missings
+  rename(from =&quot;id&quot;, to = &quot;value&quot;, sourcevar= &quot;variable&quot;) %&gt;% #just nice for interpretation
+  relocate(to, .after=from) #move around the columns
+g_elist_from_alist</code></pre>
+<pre><code>##   from to sourcevar
+## 1    1  2   friend1
+## 2    2  3   friend1
+## 3    3  1   friend1
+## 4    1  4   friend2</code></pre>
+<p><strong>QUESTION:</strong> Besides being useful for data manipulation
+procedures, keeping the information in <code>sourcevar</code> could also
+be important for more substantive reasons. Can you think of such a
+reason?</p>
+<p>For when we want to account for the strength of relationships? friend
+1 might indicate best friend = stronger tie.</p>
+<p>now importing into network object</p>
+<pre class="r"><code>g_from_alist &lt;- graph_from_data_frame(g_elist_from_alist) #This is a proper igraph graph object
+plot(g_from_alist)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-19-1.png" alt="" width="672" /></p>
+<p>correction to include isolate (+creating adjacency list)</p>
+<pre class="r"><code>nodelist &lt;- select(g_adj_list,id,age)
+g_from_alist &lt;- graph_from_data_frame(g_elist_from_alist, vertices = nodelist) #This is a proper igraph graph object
+plot(g_from_alist)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-20-1.png" alt="" width="672" /></p>
+</div>
+</div>
+<div id="the-reverse-direction-exporting-from-igraph-objects"
+class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> 1.2 The reverse
+direction: exporting from igraph objects</h2>
+<div id="from-igraph-to-adjacency-matrix" class="section level3"
+number="1.2.1">
+<h3><span class="header-section-number">1.2.1</span> 1.2.1 From igraph
+to adjacency matrix</h3>
+<pre class="r"><code>g_adj_matrix &lt;- as_adjacency_matrix(g, sparse = FALSE)
+g_adj_matrix</code></pre>
+<pre><code>##   1 2 3 4 5
+## 1 0 1 0 1 0
+## 2 0 0 1 0 0
+## 3 1 0 0 0 0
+## 4 0 0 0 0 0
+## 5 0 0 0 0 0</code></pre>
+</div>
+<div id="from-igraph-to-edge-list" class="section level3"
+number="1.2.2">
+<h3><span class="header-section-number">1.2.2</span> 1.2.2 From igraph
+to edge list</h3>
+<pre class="r"><code>g_edgelist &lt;- igraph::as_data_frame(g_from_elist, what = &quot;edges&quot;) 
+g_edgelist</code></pre>
+<pre><code>##   from to
+## 1    1  2
+## 2    2  3
+## 3    3  1
+## 4    1  4</code></pre>
+<p>the number 5 again…</p>
+<pre class="r"><code>igraph::as_data_frame(g_from_elist, what = &quot;vertices&quot;) </code></pre>
+<pre><code>##   name age
+## 1    1  20
+## 2    2  21
+## 3    3  25
+## 4    4  NA
+## 5    5  21</code></pre>
+</div>
+<div id="from-igraph-to-adjacency-list" class="section level3"
+number="1.2.3">
+<h3><span class="header-section-number">1.2.3</span> 1.2.3 From igraph
+to adjacency list</h3>
+<pre class="r"><code>edgelist_2 &lt;- igraph::as_data_frame(g_from_alist, what = &quot;edges&quot;)
+nodelist_2 &lt;- igraph::as_data_frame(g_from_alist, what = &quot;vertices&quot;)
+# Note the use of the &quot;namespace&quot; &quot;igraph::&quot; here, to indicate that we need the igraph function here, not the function with the same name from the dplyr/tidyverse package
+
+d &lt;- edgelist_2 %&gt;%
+  rename(id = &quot;from&quot;) %&gt;% 
+  pivot_wider( id_cols = id, names_from = sourcevar, values_from = to ) %&gt;% 
+  merge(nodelist_2, by.x = &quot;id&quot;, by.y = &quot;name&quot;, all.y = TRUE ) %&gt;% 
+  relocate(age, .after = id) %&gt;% 
+  type_convert() #as_data_frame returns characters; this transforms it back to numeric</code></pre>
+<pre><code>## 
+## ── Column specification ────────────────────────────────────────────────────────
+## cols(
+##   id = col_double(),
+##   friend1 = col_double(),
+##   friend2 = col_double()
+## )</code></pre>
+<pre class="r"><code>d</code></pre>
+<pre><code>##   id age friend1 friend2
+## 1  1  20       2       4
+## 2  2  21       3      NA
+## 3  3  25       1      NA
+## 4  4  NA      NA      NA
+## 5  5  21      NA      NA</code></pre>
+</div>
+</div>
+<div id="getting-network-data-into-r-the-network-package"
+class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> 1.3 Getting network
+data into R: the network package</h2>
+<pre class="r"><code>g_np &lt;- as.network(g_elist_from_alist, matrix.type = &quot;edgelist&quot;, vertices = nodelist)
+g_np</code></pre>
+<pre><code>##  Network attributes:
+##   vertices = 5 
+##   directed = TRUE 
+##   hyper = FALSE 
+##   loops = FALSE 
+##   multiple = FALSE 
+##   bipartite = FALSE 
+##   total edges= 4 
+##     missing edges= 0 
+##     non-missing edges= 4 
+## 
+##  Vertex attribute names: 
+##     age vertex.names 
+## 
+##  Edge attribute names: 
+##     sourcevar</code></pre>
+<pre class="r"><code>plot(g_np)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-27-1.png" alt="" width="672" /></p>
+</div>
+<div id="modifying-networks-in-igraph" class="section level2"
+number="1.4">
+<h2><span class="header-section-number">1.4</span> 1.4 Modifying
+networks in igraph</h2>
+<p>Removing a node :((</p>
+<pre class="r"><code>g_mod &lt;- delete_vertices(g,2)
+plot(g_mod)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-28-1.png" alt="" width="672" /></p>
+<p>Eliminating 21 year olds</p>
+<pre class="r"><code>g_mod &lt;- delete_vertices(g,which(V(g)$age == 21))
+plot(g_mod)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-29-1.png" alt="" width="672" /></p>
+<p>Eliminating missing age</p>
+<pre class="r"><code>g_mod &lt;- delete_vertices(g,which(is.na(V(g)$age)))
+plot(g_mod)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-30-1.png" alt="" width="672" /></p>
+<p>Adding node attributes</p>
+<pre class="r"><code>V(g)$gender &lt;- c(&quot;male&quot;, &quot;female&quot;, &quot;female&quot;, &quot;other&quot;, &quot;male&quot;) 
+g</code></pre>
+<pre><code>## IGRAPH b6b22d3 DN-- 5 4 -- 
+## + attr: name (v/c), age (v/n), gender (v/c)
+## + edges from b6b22d3 (vertex names):
+## [1] 1-&gt;2 1-&gt;4 2-&gt;3 3-&gt;1</code></pre>
+<p>Functions that modify the entire graph</p>
+<pre class="r"><code>g_rev &lt;- reverse_edges(g)
+plot(g_rev)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-32-1.png" alt="" width="672" /></p>
+<p>combining edges of two graphs</p>
+<pre class="r"><code>g_union &lt;- igraph::union(g, g_rev)
+plot(g_union)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-33-1.png" alt="" width="672" /></p>
+<pre class="r"><code>g_undir &lt;- as_undirected(g)
+plot(g_undir)</code></pre>
+<p><img src="Tutorial-1_files/figure-html/unnamed-chunk-33-2.png" alt="" width="672" /></p>
+<p><strong><em>QUESTION:</em></strong> What’s the difference?</p>
+<p>in one we see that there are edges in two directions and in the
+second one we just can see that there are edges</p>
+</div>
+</div>
+
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiVHV0b3JpYWwgMSIKYXV0aG9yOiAiSmFrdWIgSmFudXN6IgpkYXRlOiAiMjAyNi0wNC0yOSIKb3V0cHV0OiBodG1sX2RvY3VtZW50Ci0tLQoKIyAxIEhhbmRsaW5nIHNvY2lhbCBuZXR3b3JrIGRhdGEgaW4gUgoKTG9hZGluZyBwYWNrYWdlcwoKYGBge3J9CiNpbnN0YWxsLnBhY2thZ2VzKCJuZXR3b3JrIikKI2luc3RhbGwucGFja2FnZXMoImlncmFwaCIpCiNpbnN0YWxsLnBhY2thZ2VzKCJyZXNoYXBlMiIpCiNpbnN0YWxsLnBhY2thZ2VzKCJ0aWR5dmVyc2UiKQoKbGlicmFyeShuZXR3b3JrKQpsaWJyYXJ5KGlncmFwaCkKbGlicmFyeShyZXNoYXBlMikKbGlicmFyeSh0aWR5dmVyc2UpCmBgYAoKIyMgMS4xIEdldHRpbmcgbmV0d29yayBkYXRhIGludG8gUjogdGhlIGlncmFwaCBwYWNrYWdlCgojIyMgMS4xLjEgRnJvbSBhZGphY2VuY3kgbWF0cml4IHRvIGlncmFwaCBvYmplY3QKClJlYWRpbmcgZGF0YSBmcm9tIGludGVybmV0CgpgYGB7cn0KdXJsMSA8LSAiaHR0cHM6Ly9naXRodWIuY29tL3JlbnNlYy9zYXNyMDgvcmF3L21haW4vZ19hZGpfbWF0cml4X3NpbXBsZS5jc3YiCmdfbWF0cml4IDwtIHJlYWQuY3N2KGZpbGUgPSB1cmwxLCBoZWFkZXIgPSBGQUxTRSkKZ19tYXRyaXgKYGBgCgpcXiBhZGphY2VuY3kgbWF0cml4IC0gc3F1YXJlIG1hdHJpeCBpbiB3aGljaCBib3RoIHRoZSByb3dzIGFuZCB0aGUgY29sdW1ucyByZXByZXNlbnQgbm9kZXMsIGFuZCB0aGUgdmFsdWVzIGluIHRoZSBjZWxscyBpbmRpY2F0ZSB0aGUgc3RhdHVzIG9mIHRoZSBlZGdlcyBiZXR3ZWVuIHRoZXNlIG5vZGVzCgpgYGB7cn0KY2xhc3MoZ19tYXRyaXgpCmBgYAoKVHJhbnNmb3JtYXRpb24gaW50byBtYXRyaXggb2JqZWN0CgpgYGB7cn0KZ19tYXRyaXggPC0gYXMubWF0cml4KGdfbWF0cml4KQpnX21hdHJpeApgYGAKClxebWF0cml4IG9iamVjdCAtIHRoZSBkYXRhIHN0aWxsIGhhdmUgdGhlICpzaGFwZSogb2YgYW4gYWRqYWNlbmN5IG1hdHJpeCwgYnV0IGluIFIsIGl0IGlzIG5vdyBzdG9yZWQgYXMgYW4gb2JqZWN0IG9mIGNsYXNzIOKAmG1hdHJpeOKAmQoKQWRkaW5nIHJvdy0gYW5kIGNvbHVtbiBuYW1lcyBmb3IgY2xhcml0cnkgKGJ5IHNpbXBseSBudW1iZXJpbmcgdGhlbSk6CgpgYGB7cn0Kcm93bmFtZXMoZ19tYXRyaXgpIDwtIDE6bnJvdyhnX21hdHJpeCkKY29sbmFtZXMoZ19tYXRyaXgpIDwtIDE6bmNvbChnX21hdHJpeCkKZ19tYXRyaXgKYGBgCgoqKlFVRVNUSU9OOioqIEhvdyBtYW55IG5vZGVzIGFyZSBpbmNsdWRlZCBpbiB0aGlzIG1hdHJpeCwgYW5kIGhvdyBtYW55IGVkZ2VzIGFyZSB0aGVyZSBiZXR3ZWVuIHRoZXNlIG5vZGVzPwoKNSBub2RlcyBhbmQgNCBlZGdlcyBiZXR3ZWVuIHRoZW0KClJlYWRpbmcgYW4gYXR0cmlidXRlIG9mIHRoZSBub2RlczoKCmBgYHtyfQpnX25vZGVzX2FnZSA8LSByZWFkLmNzdihmaWxlID0gImh0dHBzOi8vZ2l0aHViLmNvbS9yZW5zZWMvc2FzcjA4L3Jhdy9tYWluL2dfbm9kZXNfYWdlLmNzdiIpCmdfbm9kZXNfYWdlCmBgYAoKQ3JlYXRpbmcgYW4gYGlncmFwaGAgbmV0d29yayBvYmplY3QgZnJvbSBvdXIgbWF0cml4CgpgYGB7cn0KZyA8LSBncmFwaF9mcm9tX2FkamFjZW5jeV9tYXRyaXgoZ19tYXRyaXgpCmNsYXNzKGcpCgpnCmBgYAoKQ3JlYXRpbmcgbmV0d29yayBtYXAKCmBgYHtyfQpwbG90KGcpCgpgYGAKCkFkZGluZyBub2RlIGF0dHJpYnV0ZXMgdG8gdGhlIG9iamVjdAoKYGBge3J9CmcgPC0gc2V0X3ZlcnRleF9hdHRyKGcsIAogICAgICAgICAgICAgICAgICAgICBuYW1lID0gImFnZSIsCiAgICAgICAgICAgICAgICAgICAgIHZhbHVlID0gZ19ub2Rlc19hZ2UkYWdlKQpgYGAKCiMjIyAxLjEuMiBGcm9tIGVkZ2UgbGlzdCB0byBpZ3JhcGggb2JqZWN0CgpMb2FkaW5nIHRoZSBmaWxlIHdpdGggZWRnZSBsaXN0IGludG8gYSBkYXRhIGZyYW1lOgoKYGBge3J9CmdfZWxpc3QgPC0gcmVhZC5jc3YoZmlsZSA9ICJodHRwczovL2dpdGh1Yi5jb20vcmVuc2VjL3Nhc3IwOC9yYXcvbWFpbi9nX2VsaXN0LmNzdiIpCmdfZWxpc3QKYGBgCgpDcmVhdGluZyBhbiBgaWdyYXBoYCBuZXR3b3JrIG9iamVjdCBmcm9tIHRoZSBlZGdlIGxpc3Q6CgpgYGB7cn0KZ19mcm9tX2VsaXN0IDwtIGdyYXBoX2Zyb21fZGF0YV9mcmFtZShnX2VsaXN0KSAKcGxvdChnX2Zyb21fZWxpc3QpCmBgYAoKXF4gSXNvbGF0ZSAobXIgNSkgbG9zdCA6KCgoCgpOb3cgd2Ugd2FudCB0byBpbmNsdWRlIGlzb2xhbnRlIGluIHRoZSBuZXR3b3JrIG9iamVjdAoKYGBge3J9CmdfZnJvbV9lbGlzdCA8LSBncmFwaF9mcm9tX2RhdGFfZnJhbWUoZ19lbGlzdCwgdmVydGljZXMgPSBnX25vZGVzX2FnZSkgCnBsb3QoZ19mcm9tX2VsaXN0KQpgYGAKCiEgaXQgaXMgaW1wb3J0YW50IHRvIGFsd2F5cyBpbmNsdWRlIGEgY29tcGxldGUgbm9kZSBsaXN0IGFzIHdlbGwgKHVubGVzcyB5b3UgYXJlIGNlcnRhaW4gdGhhdCB0aGUgZWRnZSBsaXN0IGluY2x1ZGVzIGFsbCBub2RlcykhCgoqKkFzc2lnbm1lbnQ6KiogZnJvbSB0aGUgY29kZSBzbmlwcGV0cyBhYm92ZSwgY29uc3RydWN0IGEgY29tcGxldGUg4oCccGlwZWxpbmXigJ0gdG8gZ28gZnJvbSB0aGUgZWRnZSBsaXN0IHRvIHRoZSBpZ3JhcGggb2JqZWN0LiBTdGFydCBmcm9tIGBnX2VsaXN0YC4gUGxvdCB0aGUgcmVzdWx0aW5nIG5ldHdvcmsuIFN0b3JlIHRoZSBjb2RlIHNvbWV3aGVyZSBmb3IgbGF0ZXIgdXNlLgoKYGBge3J9CmdfZWxpc3QgPC0gcmVhZC5jc3YoZmlsZSA9ICJodHRwczovL2dpdGh1Yi5jb20vcmVuc2VjL3Nhc3IwOC9yYXcvbWFpbi9nX2VsaXN0LmNzdiIpCgpnX2Zyb21fZWxpc3QgPC0gZ3JhcGhfZnJvbV9kYXRhX2ZyYW1lKGdfZWxpc3QsIHZlcnRpY2VzID0gZ19ub2Rlc19hZ2UpIApwbG90KGdfZnJvbV9lbGlzdCkKYGBgCgojIyMgMS4xLjMgRnJvbSBhZGphY2VuY3kgbGlzdCB0byBpZ3JhcGggb2JqZWN0CgpBZGphY2VuY3kgbGlzdAoKYGBge3J9CmdfYWRqX2xpc3QgPC0gcmVhZC5jc3YoZmlsZSA9ICJodHRwczovL2dpdGh1Yi5jb20vcmVuc2VjL3Nhc3IwOC9yYXcvbWFpbi9nX2Fkal9saXN0LmNzdiIpCmdfYWRqX2xpc3QKYGBgCgpUaGUgbW9zdCBjb252ZW5pZW50IHdheSB0byBjcmVhdGUgYSBuZXR3b3JrIG9iamVjdCBmcm9tIHRoZXNlIGRhdGEsIGlzIHRvIGZpcnN0IHRyYW5zZm9ybSB0aGVtIGludG8gYW4gKmVkZ2UgbGlzdCoKCk1ha2luZyBkYXRhIGxvbmcKCmBgYHtyfQpnX2VsaXN0X2Zyb21fYWxpc3QgPC0gZ19hZGpfbGlzdApnX2VsaXN0X2Zyb21fYWxpc3QgPC0gIHNlbGVjdChnX2VsaXN0X2Zyb21fYWxpc3QsIGlkLCBmcmllbmQxOmZyaWVuZDIpICMga2VlcCBvbmx5IHRoZSBuZXR3b3JrIHZhcmlhYmxlcyAoYW5kIGlkKQpnX2VsaXN0X2Zyb21fYWxpc3QgPC0gIG1lbHQoZ19lbGlzdF9mcm9tX2FsaXN0LCBpZC52YXJzID0gImlkIikgIyBmcm9tIHRoZSByZXNoYXBlMiBwYWNrYWdlCmdfZWxpc3RfZnJvbV9hbGlzdApgYGAKClVzaW5nIHBpcGUgb3BlcmF0b3IgdG8gc3RyZWFtbGluZSB0aGUgY29kZQoKYGBge3J9CmdfZWxpc3RfZnJvbV9hbGlzdCA8LSBnX2Fkal9saXN0ICU+JSAKICBzZWxlY3QoaWQsIGZyaWVuZDE6ZnJpZW5kMikgJT4lICMga2VlcCBvbmx5IHRoZSBuZXR3b3JrIHZhcmlhYmxlcyAoYW5kIGlkKQogIG1lbHQoIGlkLnZhcnMgPSAiaWQiKSAjIGZyb20gdGhlIHJlc2hhcGUyIHBhY2thZ2UKYGBgCgpTYW1lIHRoaW5nIHVzaW5nIHRpZHl2ZXJzZQoKYGBge3J9CmdfYWRqX2xpc3QgJT4lICMgKHdlIGRvbid0IHNhdmUgaXQgaW50byBhbiBvYmplY3QgYXMgYWJvdmUgdGhpcyB0aW1lLCBzaW5jZSB3ZSBqdXN0IHdhbnQgdG8gc2hvdyB0aGF0IHRoZSByZXN1bHQgaXMgdGhlIHNhbWUpCiAgc2VsZWN0KGlkLCBmcmllbmQxOmZyaWVuZDIpICU+JSAja2VlcCBvbmx5IHRoZSBuZXR3b3JrIHZhcmlhYmxlcyAoYW5kIGlkKQogIHBpdm90X2xvbmdlcihjKGZyaWVuZDEsIGZyaWVuZDIpKQpgYGAKClRvIGNyZWF0ZSBhbiBlZGdlIGxpc3Qgd2Ugc3Vic2VxdWVudGx5IGRyb3AgYWxsIG1pc3NpbmcgdmFsdWVzIG9uIOKAnHZhbHVl4oCdIGFuZCBkbyBzb21lIGhvdXNla2VlcGluZzoKCmBgYHtyfQpnX2VsaXN0X2Zyb21fYWxpc3QgPC0gZ19lbGlzdF9mcm9tX2FsaXN0JT4lIAogIGZpbHRlcighaXMubmEodmFsdWUpKSAlPiUgIyBkcm9wIHRoZSBtaXNzaW5ncwogIHJlbmFtZShmcm9tID0iaWQiLCB0byA9ICJ2YWx1ZSIsIHNvdXJjZXZhcj0gInZhcmlhYmxlIikgJT4lICNqdXN0IG5pY2UgZm9yIGludGVycHJldGF0aW9uCiAgcmVsb2NhdGUodG8sIC5hZnRlcj1mcm9tKSAjbW92ZSBhcm91bmQgdGhlIGNvbHVtbnMKZ19lbGlzdF9mcm9tX2FsaXN0CmBgYAoKKipRVUVTVElPTjoqKiBCZXNpZGVzIGJlaW5nIHVzZWZ1bCBmb3IgZGF0YSBtYW5pcHVsYXRpb24gcHJvY2VkdXJlcywga2VlcGluZyB0aGUgaW5mb3JtYXRpb24gaW4gYHNvdXJjZXZhcmAgY291bGQgYWxzbyBiZSBpbXBvcnRhbnQgZm9yIG1vcmUgc3Vic3RhbnRpdmUgcmVhc29ucy4gQ2FuIHlvdSB0aGluayBvZiBzdWNoIGEgcmVhc29uPwoKRm9yIHdoZW4gd2Ugd2FudCB0byBhY2NvdW50IGZvciB0aGUgc3RyZW5ndGggb2YgcmVsYXRpb25zaGlwcz8gZnJpZW5kIDEgbWlnaHQgaW5kaWNhdGUgYmVzdCBmcmllbmQgPSBzdHJvbmdlciB0aWUuCgpub3cgaW1wb3J0aW5nIGludG8gbmV0d29yayBvYmplY3QKCmBgYHtyfQpnX2Zyb21fYWxpc3QgPC0gZ3JhcGhfZnJvbV9kYXRhX2ZyYW1lKGdfZWxpc3RfZnJvbV9hbGlzdCkgI1RoaXMgaXMgYSBwcm9wZXIgaWdyYXBoIGdyYXBoIG9iamVjdApwbG90KGdfZnJvbV9hbGlzdCkKYGBgCgpjb3JyZWN0aW9uIHRvIGluY2x1ZGUgaXNvbGF0ZSAoK2NyZWF0aW5nIGFkamFjZW5jeSBsaXN0KQoKYGBge3J9Cm5vZGVsaXN0IDwtIHNlbGVjdChnX2Fkal9saXN0LGlkLGFnZSkKZ19mcm9tX2FsaXN0IDwtIGdyYXBoX2Zyb21fZGF0YV9mcmFtZShnX2VsaXN0X2Zyb21fYWxpc3QsIHZlcnRpY2VzID0gbm9kZWxpc3QpICNUaGlzIGlzIGEgcHJvcGVyIGlncmFwaCBncmFwaCBvYmplY3QKcGxvdChnX2Zyb21fYWxpc3QpCmBgYAoKIyMgMS4yIFRoZSByZXZlcnNlIGRpcmVjdGlvbjogZXhwb3J0aW5nIGZyb20gaWdyYXBoIG9iamVjdHMKCiMjIyAxLjIuMSBGcm9tIGlncmFwaCB0byBhZGphY2VuY3kgbWF0cml4CgpgYGB7cn0KZ19hZGpfbWF0cml4IDwtIGFzX2FkamFjZW5jeV9tYXRyaXgoZywgc3BhcnNlID0gRkFMU0UpCmdfYWRqX21hdHJpeAoKYGBgCgojIyMgMS4yLjIgRnJvbSBpZ3JhcGggdG8gZWRnZSBsaXN0CgpgYGB7cn0KZ19lZGdlbGlzdCA8LSBpZ3JhcGg6OmFzX2RhdGFfZnJhbWUoZ19mcm9tX2VsaXN0LCB3aGF0ID0gImVkZ2VzIikgCmdfZWRnZWxpc3QKYGBgCgp0aGUgbnVtYmVyIDUgYWdhaW4uLi4KCmBgYHtyfQppZ3JhcGg6OmFzX2RhdGFfZnJhbWUoZ19mcm9tX2VsaXN0LCB3aGF0ID0gInZlcnRpY2VzIikgCgpgYGAKCiMjIyAxLjIuMyBGcm9tIGlncmFwaCB0byBhZGphY2VuY3kgbGlzdAoKYGBge3J9CmVkZ2VsaXN0XzIgPC0gaWdyYXBoOjphc19kYXRhX2ZyYW1lKGdfZnJvbV9hbGlzdCwgd2hhdCA9ICJlZGdlcyIpCm5vZGVsaXN0XzIgPC0gaWdyYXBoOjphc19kYXRhX2ZyYW1lKGdfZnJvbV9hbGlzdCwgd2hhdCA9ICJ2ZXJ0aWNlcyIpCiMgTm90ZSB0aGUgdXNlIG9mIHRoZSAibmFtZXNwYWNlIiAiaWdyYXBoOjoiIGhlcmUsIHRvIGluZGljYXRlIHRoYXQgd2UgbmVlZCB0aGUgaWdyYXBoIGZ1bmN0aW9uIGhlcmUsIG5vdCB0aGUgZnVuY3Rpb24gd2l0aCB0aGUgc2FtZSBuYW1lIGZyb20gdGhlIGRwbHlyL3RpZHl2ZXJzZSBwYWNrYWdlCgpkIDwtIGVkZ2VsaXN0XzIgJT4lCiAgcmVuYW1lKGlkID0gImZyb20iKSAlPiUgCiAgcGl2b3Rfd2lkZXIoIGlkX2NvbHMgPSBpZCwgbmFtZXNfZnJvbSA9IHNvdXJjZXZhciwgdmFsdWVzX2Zyb20gPSB0byApICU+JSAKICBtZXJnZShub2RlbGlzdF8yLCBieS54ID0gImlkIiwgYnkueSA9ICJuYW1lIiwgYWxsLnkgPSBUUlVFICkgJT4lIAogIHJlbG9jYXRlKGFnZSwgLmFmdGVyID0gaWQpICU+JSAKICB0eXBlX2NvbnZlcnQoKSAjYXNfZGF0YV9mcmFtZSByZXR1cm5zIGNoYXJhY3RlcnM7IHRoaXMgdHJhbnNmb3JtcyBpdCBiYWNrIHRvIG51bWVyaWMKYGBgCgpgYGB7cn0KZApgYGAKCiMjIDEuMyBHZXR0aW5nIG5ldHdvcmsgZGF0YSBpbnRvIFI6IHRoZSBuZXR3b3JrIHBhY2thZ2UKCmBgYHtyfQpnX25wIDwtIGFzLm5ldHdvcmsoZ19lbGlzdF9mcm9tX2FsaXN0LCBtYXRyaXgudHlwZSA9ICJlZGdlbGlzdCIsIHZlcnRpY2VzID0gbm9kZWxpc3QpCmdfbnAKCmBgYAoKYGBge3J9CnBsb3QoZ19ucCkKCmBgYAoKIyMgMS40IE1vZGlmeWluZyBuZXR3b3JrcyBpbiBpZ3JhcGgKClJlbW92aW5nIGEgbm9kZSA6KCgKCmBgYHtyfQpnX21vZCA8LSBkZWxldGVfdmVydGljZXMoZywyKQpwbG90KGdfbW9kKQpgYGAKCkVsaW1pbmF0aW5nIDIxIHllYXIgb2xkcwoKYGBge3J9CmdfbW9kIDwtIGRlbGV0ZV92ZXJ0aWNlcyhnLHdoaWNoKFYoZykkYWdlID09IDIxKSkKcGxvdChnX21vZCkKYGBgCgpFbGltaW5hdGluZyBtaXNzaW5nIGFnZQoKYGBge3J9CmdfbW9kIDwtIGRlbGV0ZV92ZXJ0aWNlcyhnLHdoaWNoKGlzLm5hKFYoZykkYWdlKSkpCnBsb3QoZ19tb2QpCmBgYAoKQWRkaW5nIG5vZGUgYXR0cmlidXRlcwoKYGBge3J9ClYoZykkZ2VuZGVyIDwtIGMoIm1hbGUiLCAiZmVtYWxlIiwgImZlbWFsZSIsICJvdGhlciIsICJtYWxlIikgCmcKYGBgCgpGdW5jdGlvbnMgdGhhdCBtb2RpZnkgdGhlIGVudGlyZSBncmFwaAoKYGBge3J9CmdfcmV2IDwtIHJldmVyc2VfZWRnZXMoZykKcGxvdChnX3JldikKYGBgCgpjb21iaW5pbmcgZWRnZXMgb2YgdHdvIGdyYXBocwoKYGBge3J9CmdfdW5pb24gPC0gaWdyYXBoOjp1bmlvbihnLCBnX3JldikKcGxvdChnX3VuaW9uKQoKCmdfdW5kaXIgPC0gYXNfdW5kaXJlY3RlZChnKQpwbG90KGdfdW5kaXIpCmBgYAoKKioqUVVFU1RJT046KioqIFdoYXTigJlzIHRoZSBkaWZmZXJlbmNlPwoKaW4gb25lIHdlIHNlZSB0aGF0IHRoZXJlIGFyZSBlZGdlcyBpbiB0d28gZGlyZWN0aW9ucyBhbmQgaW4gdGhlIHNlY29uZCBvbmUgd2UganVzdCBjYW4gc2VlIHRoYXQgdGhlcmUgYXJlIGVkZ2VzCg==</div>
 
 
 </div>
