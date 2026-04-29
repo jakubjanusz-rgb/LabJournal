@@ -1,21 +1,23 @@
 ---
-title: "Lab journal"
+title: "My Lab journal"
 output:
   html_document:
     toc: false
     number_sections: false
-author: "by: Your Name"
+author: "by: Jakub Janusz"
 bibliography: references.bib
-
+editor_options: 
+  chunk_output_type: console
 ---
 
-
-```{r, install remotely, globalsettings, echo=FALSE, warning=FALSE, results='hide'}
+```{r, warning=FALSE, globalsettings=TRUE, echo=FALSE, results='hide'}
 # install.packages("remotes")
-#remotes::install_github("rlesur/klippy")
-``` 
+# install.packages("rgl")
 
-```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide'}
+remotes::install_github("rlesur/klippy")
+```
+
+```{r install-remotely, warning=FALSE, echo=FALSE, results='hide'}
 library(knitr)
 
 knitr::opts_chunk$set(echo = TRUE)
@@ -35,60 +37,38 @@ klippy::klippy(position = c('top', 'right'))
 #klippy::klippy(tooltip_message = 'Click to copy', tooltip_success = 'Done')
 ```
 
+------------------------------------------------------------------------
 
-
-
-----
-
-:::::::::::::: {.columns}
+::::: columns
 ::: {.column width="50%"}
-
 # My Lab Journal
-Last compiled on `r format(Sys.time(), '%B, %Y')`  
 
-*Describe lab journal here.*
+Last compiled on `r format(Sys.time(), '%B, %Y')`
+
+*:)*
 
 <br>
 
-----
+------------------------------------------------------------------------
 
-This is an example of a lab journal website, built using R Markdown and GitHub Pages. This is the front page; check out "My Journal" for the actual journal entries. 
-
-
+This is an example of a lab journal website, built using R Markdown and GitHub Pages. This is the front page; check out "My Journal" for the actual journal entries.
 :::
+
 ::: {.column width="50%"}
-
-
-
-
-
 ![](images/sciencedog.jpg)
-
-
 :::
-::::::::::::::
-
-
+:::::
 
 ## How to use
 
-1. Fork the repository for this website and follow instructions on `README` to get started [here](https://github.com/rensec/LabJournal).  
+1.  Fork the repository for this website and follow instructions on `README` to get started [here](https://github.com/rensec/LabJournal).
 
-2. Journal your work, by editing the .Rmd-files
+2.  Journal your work, by editing the .Rmd-files
 
-3. ...
+3.  ...
 
-4. Change everything to make it your own!
-
+4.  Change everything to make it your own!
 
 <br>
 
-
-
-----
-
-
-
-
-
-
+------------------------------------------------------------------------
