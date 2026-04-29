@@ -1,0 +1,6 @@
+---
+title: "Tutorial 1"
+author: "Jakub Janusz"
+date: "2026-04-29"
+output: html_document
+---
